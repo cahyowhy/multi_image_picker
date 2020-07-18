@@ -140,12 +140,14 @@ class MultiImagePicker {
   /// refer to [Asset] class docs.
   ///
   /// The actual image data is sent via BinaryChannel.
-  static Future<bool> requestOriginal(String identifier, quality) async {
+  static Future<bool> requestOriginal(String identifier, quality, {int width = 0, int height = 0}) async {
     try {
-      bool ret =
-          await _channel.invokeMethod("requestOriginal", <String, dynamic>{
+      bool ret = await _channel.invokeMethod(
+          "requestOriginal", <String, dynamic>{
         "identifier": identifier,
         "quality": quality,
+        "width": width,
+        "height": height
       });
       return ret;
     } on PlatformException catch (e) {

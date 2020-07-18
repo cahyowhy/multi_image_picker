@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'dart:async';
-
 import 'package:multi_image_picker/multi_image_picker.dart';
+import 'dart:typed_data';
+
+import 'package:path_provider/path_provider.dart';
 
 void main() => runApp(new MyApp());
 
@@ -13,10 +17,19 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   List<Asset> images = List<Asset>();
   String _error = 'No Error Dectected';
+  File _imageFileOriginal;
 
   @override
   void initState() {
     super.initState();
+  }
+
+  Future<File> writeToFile(ByteData data, String path) async {
+    final buffer = data.buffer;
+    String dir = (await getApplicationDocumentsDirectory()).path;
+
+    return File("$dir/$path").writeAsBytes(
+        buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
   }
 
   Widget buildGridView() {
@@ -64,6 +77,16 @@ class _MyAppState extends State<MyApp> {
       images = resultList;
       _error = error;
     });
+
+    if (resultList?.isNotEmpty ?? false) {
+      var asset = resultList.last;
+      File file = await writeToFile(
+          await asset.getByteData(height: 800, width: 800), asset.name);
+
+      setState(() {
+        _imageFileOriginal = file;
+      });
+    }
   }
 
   @override
@@ -73,17 +96,21 @@ class _MyAppState extends State<MyApp> {
         appBar: new AppBar(
           title: const Text('Plugin example app'),
         ),
-        body: Column(
-          children: <Widget>[
-            Center(child: Text('Error: $_error')),
-            RaisedButton(
-              child: Text("Pick images"),
-              onPressed: loadAssets,
-            ),
-            Expanded(
-              child: buildGridView(),
-            )
-          ],
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: <Widget>[
+              Center(child: Text('Error: $_error')),
+              RaisedButton(
+                child: Text("Pick images"),
+                onPressed: loadAssets,
+              ),
+              Expanded(child: buildGridView()),
+              _imageFileOriginal != null
+                  ? Image.file(_imageFileOriginal)
+                  : SizedBox()
+            ],
+          ),
         ),
       ),
     );

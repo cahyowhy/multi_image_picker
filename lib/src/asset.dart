@@ -115,7 +115,8 @@ class Asset {
   /// The method returns a Future with the [ByteData] for the image,
   /// as well as storing it in the _imageData property which can be requested
   /// later again, without need to call this method again.
-  Future<ByteData> getByteData({int quality = 100}) async {
+  Future<ByteData> getByteData(
+      {int quality = 100, int width = 0, int height = 0}) async {
     if (quality < 0 || quality > 100) {
       throw new ArgumentError.value(
           quality, 'quality should be in range 0-100');
@@ -130,7 +131,8 @@ class Asset {
       return message;
     });
 
-    await MultiImagePicker.requestOriginal(_identifier, quality);
+    await MultiImagePicker.requestOriginal(_identifier, quality,
+        height: width, width: height);
     return completer.future;
   }
 

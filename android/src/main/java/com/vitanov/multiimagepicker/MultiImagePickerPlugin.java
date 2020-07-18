@@ -117,7 +117,7 @@ public class MultiImagePickerPlugin implements
                 Activity activity = activityReference.get();
                 if (activity == null || activity.isFinishing()) return null;
 
-                Bitmap sourceBitmap = getCorrectlyOrientedImage(activity, uri);
+                Bitmap sourceBitmap = getCorrectlyOrientedImage(activity, uri, 0, 0);
                 Bitmap bitmap = ThumbnailUtils.extractThumbnail(sourceBitmap, this.width, this.height, OPTIONS_RECYCLE_INPUT);
 
                 if (bitmap == null) return null;
@@ -157,12 +157,16 @@ public class MultiImagePickerPlugin implements
         final BinaryMessenger messenger;
         final String identifier;
         final int quality;
+        final int width;
+        final int height;
 
-        GetImageTask(Activity context, BinaryMessenger messenger, String identifier, int quality) {
+        GetImageTask(Activity context, BinaryMessenger messenger, String identifier, int quality, int width, int height) {
             super();
             this.messenger = messenger;
             this.identifier = identifier;
             this.quality = quality;
+            this.width = width;
+            this.height = height;
             this.activityReference = new WeakReference<>(context);
         }
 
@@ -176,7 +180,7 @@ public class MultiImagePickerPlugin implements
                 Activity activity = activityReference.get();
                 if (activity == null || activity.isFinishing()) return null;
 
-                Bitmap bitmap = getCorrectlyOrientedImage(activity, uri);
+                Bitmap bitmap = getCorrectlyOrientedImage(activity, uri, width, height);
 
                 if (bitmap == null) return null;
 
@@ -220,11 +224,13 @@ public class MultiImagePickerPlugin implements
         } else if (REQUEST_ORIGINAL.equals(call.method)) {
             final String identifier = call.argument("identifier");
             final int quality = (int) call.argument("quality");
+            final int width = (int) call.argument("width");
+            final int height = (int) call.argument("height");
 
             if (!this.uriExists(identifier)) {
                 finishWithError("ASSET_DOES_NOT_EXIST", "The requested image does not exist.");
             } else {
-                GetImageTask task = new GetImageTask(this.activity, this.messenger, identifier, quality);
+                GetImageTask task = new GetImageTask(this.activity, this.messenger, identifier, quality, width, height);
                 task.execute();
                 finishWithSuccess();
             }
@@ -441,7 +447,7 @@ public class MultiImagePickerPlugin implements
         return result;
     }
 
-    private HashMap<String, Object> getExif_str(ExifInterface exifInterface, String[] tags){
+    private HashMap<String, Object> getExif_str(ExifInterface exifInterface, String[] tags) {
         HashMap<String, Object> result = new HashMap<>();
         for (String tag : tags) {
             String attribute = exifInterface.getAttribute(tag);
@@ -452,7 +458,7 @@ public class MultiImagePickerPlugin implements
         return result;
     }
 
-    private HashMap<String, Object> getExif_double(ExifInterface exifInterface, String[] tags){
+    private HashMap<String, Object> getExif_double(ExifInterface exifInterface, String[] tags) {
         HashMap<String, Object> result = new HashMap<>();
         for (String tag : tags) {
             double attribute = exifInterface.getAttributeDouble(tag, 0.0);
@@ -477,7 +483,7 @@ public class MultiImagePickerPlugin implements
         String lightStatusBar = options.get("lightStatusBar");
         String actionBarTitle = options.get("actionBarTitle");
         String actionBarTitleColor = options.get("actionBarTitleColor");
-        String allViewTitle =  options.get("allViewTitle");
+        String allViewTitle = options.get("allViewTitle");
         String startInAllView = options.get("startInAllView");
         String useDetailsView = options.get("useDetailsView");
         String selectCircleStrokeColor = options.get("selectCircleStrokeColor");
@@ -713,10 +719,10 @@ public class MultiImagePickerPlugin implements
         } catch (Exception ignored) {
 
         }
-        return  rotationDegrees;
+        return rotationDegrees;
     }
 
-    private static Bitmap getCorrectlyOrientedImage(Context context, Uri photoUri) throws IOException {
+    private static Bitmap getCorrectlyOrientedImage(Context context, Uri photoUri, int width, int height) throws IOException {
         InputStream is = context.getContentResolver().openInputStream(photoUri);
         BitmapFactory.Options dbo = new BitmapFactory.Options();
         dbo.inScaled = false;
@@ -736,12 +742,20 @@ public class MultiImagePickerPlugin implements
             is.close();
         }
 
-        if (orientation > 0) {
+        boolean hasParamSize = (width > 0 && height > 0);
+
+        if (orientation > 0 || hasParamSize) {
             Matrix matrix = new Matrix();
             matrix.postRotate(orientation);
 
-            srcBitmap = Bitmap.createBitmap(srcBitmap, 0, 0, srcBitmap.getWidth(),
-                    srcBitmap.getHeight(), matrix, true);
+            if (orientation > 0) {
+                srcBitmap = Bitmap.createBitmap(srcBitmap, 0, 0, srcBitmap.getWidth(),
+                        srcBitmap.getHeight(), matrix, true);
+            }
+
+            if (hasParamSize) {
+                srcBitmap = ThumbnailUtils.extractThumbnail(srcBitmap, width, height);
+            }
         }
 
         return srcBitmap;
